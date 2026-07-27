@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.0 — 2026-07-27
+
+- Recover automatically from DHCP address changes by rediscovering the fan by its stable device key and updating the config entry.
+
 ## v1.0.0 — 2026-07-15
 
 - First public release.

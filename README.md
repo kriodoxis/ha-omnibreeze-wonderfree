@@ -32,6 +32,7 @@ The DC2313R does not expose Matter through this integration. Instead, the integr
 - LED Display switch
 - Auto-off timer from 1 to 12 hours
 - Automatic local-network discovery
+- Automatic recovery when the fan's DHCP address changes
 - Configuration and reauthentication through the Home Assistant UI
 - Wonderfree account regions:
   - Europe / Latin America
@@ -51,6 +52,8 @@ Wonderfree cloud access is used only during initial setup or reauthentication to
 5. Only the local authentication key is saved in Home Assistant's protected config-entry storage.
 
 After setup, the integration makes no Wonderfree cloud requests during normal operation. Power, speed, oscillation, presets, switches, temperature, and timer updates go directly between Home Assistant and the fan over the local network. The Wonderfree cloud is contacted again only if Home Assistant asks you to reauthenticate and retrieve a fresh local key.
+
+The fan may receive a different address from your router after restarting or when its DHCP lease changes. If the saved address stops responding, the integration broadcasts a local discovery request, identifies the fan by its stable device key, updates the saved address, and retries the request. A DHCP reservation is still recommended, but it is no longer required for the integration to recover from an address change.
 
 Because the local key is stored by Home Assistant, Home Assistant backups must be treated as sensitive. The fan and Home Assistant must remain able to reach each other on the local network.
 
