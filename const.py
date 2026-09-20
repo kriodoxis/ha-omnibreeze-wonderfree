@@ -11,11 +11,17 @@ CONF_DEVICE_KEY = "device_key"
 CONF_PRODUCT_KEY = "product_key"
 CONF_PORT = "port"
 CONF_REGION = "region"
+CONF_BROADCAST_ADDRESSES = "broadcast_addresses"
+CONF_DEVICE_ADDRESSES = "device_addresses"
 
 DEFAULT_PORT = 6607
 DISCOVERY_PORT = 6606
 UPDATE_INTERVAL = timedelta(seconds=15)
 SUPPORTED_PRODUCT_KEY = "p11vAZ"
+SUPPORTED_PRODUCT_KEYS = {
+    "p11vkW",
+    "p11vAZ",
+}
 
 REGION_CHINA = "china"
 REGION_EUROPE = "europe"

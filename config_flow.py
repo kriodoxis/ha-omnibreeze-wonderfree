@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ipaddress
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -29,13 +31,18 @@ from .const import (
     CONF_PORT,
     CONF_PRODUCT_KEY,
     CONF_REGION,
+    CONF_BROADCAST_ADDRESSES,
+    CONF_DEVICE_ADDRESSES,
     DEFAULT_REGION,
     DOMAIN,
     REGION_OPTIONS,
     SUPPORTED_PRODUCT_KEY,
+    SUPPORTED_PRODUCT_KEYS,
 )
 from .models import DiscoveredDevice
 from .protocol import WonderfreeClient, WonderfreeError, discover_devices
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class WonderfreeConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -44,6 +51,8 @@ class WonderfreeConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._devices: dict[str, DiscoveredDevice] = {}
         self._device: DiscoveredDevice | None = None
+        self._broadcast_addresses: list[str] = []
+        self._device_addresses: list[str] = []
 
     async def _async_get_and_validate_auth_key(
         self, email: str, password: str, region: str
@@ -71,7 +80,8 @@ class WonderfreeConfigFlow(ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Required(CONF_EMAIL): TextSelector(
                     TextSelectorConfig(
-                        type=TextSelectorType.EMAIL, autocomplete="username"
+                        type=TextSelectorType.EMAIL,
+                        autocomplete="username",
                     )
                 ),
                 vol.Required(CONF_PASSWORD): TextSelector(
@@ -83,20 +93,75 @@ class WonderfreeConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
 
+    @staticmethod
+    def _parse_ip_addresses(value: str) -> list[str]:
+        """Parse and validate IPv4 addresses."""
+        addresses = []
+        for line in value.splitlines():
+            address = line.strip()
+            if not address:
+                continue
+            try:
+                ipaddress.IPv4Address(address)
+            except ValueError as err:
+                raise ValueError(f"Invalid IPv4 address: {address}") from err
+            addresses.append(address)
+        return addresses
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        if user_input is not None:
+        errors: dict[str, str] = {}
+        _LOGGER.debug("Recovered input: %s", user_input)
+        if user_input is None:
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._discovery_schema(),
+            )
+        if CONF_DEVICE_KEY in user_input:
             self._device = self._devices[user_input[CONF_DEVICE_KEY]]
             await self.async_set_unique_id(self._device.device_key)
             self._abort_if_unique_id_configured(
-                updates={CONF_HOST: self._device.host, CONF_PORT: self._device.port}
+                updates={
+                    CONF_HOST: self._device.host,
+                    CONF_PORT: self._device.port,
+                }
             )
             return await self.async_step_account()
 
-        devices = await self.hass.async_add_executor_job(discover_devices)
+        try:
+            broadcast_addresses = self._parse_ip_addresses(user_input.get(CONF_BROADCAST_ADDRESSES, ""))
+        except ValueError:
+            errors[CONF_BROADCAST_ADDRESSES] = "invalid_addresses"
+            broadcast_addresses = []
+        try:
+            device_addresses = self._parse_ip_addresses(
+                user_input.get(CONF_DEVICE_ADDRESSES, "")
+            )
+        except ValueError:
+            errors[CONF_DEVICE_ADDRESSES] = "invalid_addresses"
+            device_addresses = []
+
+        if errors:
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._discovery_schema(),
+                errors=errors,
+            )
+
+        devices = await self.hass.async_add_executor_job(discover_devices, broadcast_addresses, device_addresses,)
+
+        for device in devices:
+            _LOGGER.debug(
+                "Device %s: product_key=%s, supported=%s, supported_keys=%s",
+                device.device_key,
+                device.product_key,
+                device.product_key in SUPPORTED_PRODUCT_KEYS,
+                SUPPORTED_PRODUCT_KEYS,
+            )
+
         self._devices = {
             device.device_key: device
             for device in devices
-            if device.product_key == SUPPORTED_PRODUCT_KEY
+            if device.product_key in SUPPORTED_PRODUCT_KEYS
         }
         if not self._devices:
             return self.async_abort(reason="no_devices_found")
@@ -107,6 +172,15 @@ class WonderfreeConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({vol.Required(CONF_DEVICE_KEY): vol.In(options)}),
+        )
+
+    @staticmethod
+    def _discovery_schema() -> vol.Schema:
+        return vol.Schema(
+            {
+                vol.Optional(CONF_BROADCAST_ADDRESSES, default=""): TextSelector(TextSelectorConfig(multiline=False)),
+                vol.Optional(CONF_DEVICE_ADDRESSES, default=""): TextSelector(TextSelectorConfig(multiline=False)),
+            }
         )
 
     async def async_step_account(

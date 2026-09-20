@@ -1,0 +1,100 @@
+{
+  "title": "OmniBreeze Wonderfree",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fan discovery",
+        "data": {
+          "device_key": "Fan",
+          "broadcast_addresses": "Manual broadcast addresses",
+          "device_addresses": "Manual device addresses"
+        },
+          "data_description": {
+            "broadcast_addresses": "For example, 192.168.1.255. Enter multiple addresses separated by commas.",
+            "device_addresses": "Known device IP addresses. Enter multiple addresses separated by commas. Leave empty to rely on automatic discovery."
+          }
+      },
+      "account": {
+        "title": "Connect Wonderfree account",
+        "description": "Your account is used once to retrieve this fan's local key. The email, password, and cloud session are not stored.",
+        "data": {
+          "region": "Account region",
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Refresh local authentication",
+        "description": "Sign in once to retrieve and verify a fresh local key. The email, password, and cloud session are not stored.",
+        "data": {
+          "region": "Account region",
+          "email": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Wonderfree rejected the email, password, or selected region.",
+      "device_not_found": "This fan was not found in the selected Wonderfree account and region.",
+      "cloud_unavailable": "Could not reach the selected Wonderfree region.",
+      "cloud_response_error": "Wonderfree returned an unexpected response.",
+      "local_auth_failed": "The key returned by Wonderfree could not authenticate with the fan on the local network."
+    },
+    "abort": {
+      "no_devices_found": "No supported OmniBreeze Wonderfree fans were found.",
+      "already_configured": "This fan is already configured.",
+      "reauth_successful": "Authentication was updated.",
+      "unknown": "The config entry no longer exists."
+    }
+  },
+  "entity": {
+    "fan": {
+      "fan": {
+        "name": null,
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "normal": "Normal",
+              "natural": "Natural",
+              "sleep": "Sleep",
+              "auto": "Automatic"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      }
+    },
+    "switch": {
+      "sound": {
+        "name": "Sound"
+      },
+      "display": {
+        "name": "Display"
+      }
+    },
+    "select": {
+      "countdown": {
+        "name": "Countdown",
+        "state": {
+          "off": "Off",
+          "1_hour": "1 hour",
+          "2_hour": "2 hours",
+          "3_hour": "3 hours",
+          "4_hour": "4 hours",
+          "5_hour": "5 hours",
+          "6_hour": "6 hours",
+          "7_hour": "7 hours",
+          "8_hour": "8 hours",
+          "9_hour": "9 hours",
+          "10_hour": "10 hours",
+          "11_hour": "11 hours",
+          "12_hour": "12 hours"
+        }
+      }
+    }
+  }
+}

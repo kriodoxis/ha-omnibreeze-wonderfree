@@ -6,6 +6,7 @@ import asyncio
 import base64
 from collections.abc import Iterable
 import hashlib
+import logging
 import socket
 import struct
 from typing import Any
@@ -27,6 +28,8 @@ from .const import (
     DP_TEMPERATURE,
 )
 from .models import DiscoveredDevice, FanStatus
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class WonderfreeError(Exception):
@@ -185,8 +188,9 @@ def parse_discovery(frame: bytes, source_host: str) -> DiscoveredDevice | None:
     )
 
 
-def discover_devices(timeout: float = 2.0) -> list[DiscoveredDevice]:
+def discover_devices(broadcast_addresses: list[str] | None = None, device_addresses: list[str] | None = None, timeout: float = 2.0,) -> list[DiscoveredDevice]:
     """Discover Wonderfree devices using the proprietary UDP broadcast."""
+    _LOGGER.debug("Received discovery input Broadcast addresses: %s Device addresses: %s", broadcast_addresses, device_addresses)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -195,9 +199,22 @@ def discover_devices(timeout: float = 2.0) -> list[DiscoveredDevice]:
     try:
         try:
             sock.bind(("", DISCOVERY_PORT))
-        except OSError:
+            _LOGGER.debug("Bound discovery port: %s", DISCOVERY_PORT)
+        except OSError as err:
             sock.bind(("", 0))
-        sock.sendto(encode_frame(1000, 0x7030), ("255.255.255.255", DISCOVERY_PORT))
+            _LOGGER.debug("Bind to %s failed (%s), using ephemeral port", DISCOVERY_PORT, err)
+        destinations = {
+            "255.255.255.255",
+            *(broadcast_addresses or []),
+            *(device_addresses or []),
+        }
+
+        payload = encode_frame(1000, 0x7030)
+
+        for address in destinations:
+            _LOGGER.debug("Sending discovery packet to %s:%s", address, DISCOVERY_PORT)
+            sock.sendto(payload, (address, DISCOVERY_PORT))
+
         import time
 
         deadline = time.monotonic() + timeout
@@ -206,12 +223,15 @@ def discover_devices(timeout: float = 2.0) -> list[DiscoveredDevice]:
                 data, address = sock.recvfrom(2048)
             except TimeoutError:
                 continue
+            _LOGGER.debug("RX from %s: %s", address, data.hex())
             buffer = bytearray(data)
             frame = extract_frame(buffer)
             if frame is None:
+                _LOGGER.debug("extract_frame rejected it")
                 continue
             device = parse_discovery(frame, address[0])
             if device is not None:
+                _LOGGER.debug("Found device with key: %s", device.device_key)
                 devices[device.device_key] = device
     finally:
         sock.close()
@@ -353,6 +373,7 @@ class WonderfreeClient:
             except WonderfreeError:
                 await self.disconnect()
                 raise
+            _LOGGER.debug("Read status: %s", values)
             missing = set(ALL_DPS) - values.keys()
             if missing:
                 raise WonderfreeError(f"Missing data points: {sorted(missing)}")
