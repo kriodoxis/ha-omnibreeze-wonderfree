@@ -36,7 +36,6 @@ from .const import (
     DEFAULT_REGION,
     DOMAIN,
     REGION_OPTIONS,
-    SUPPORTED_PRODUCT_KEY,
     SUPPORTED_PRODUCT_KEYS,
 )
 from .models import DiscoveredDevice
